@@ -493,4 +493,286 @@ public class AppFrame extends JFrame {
         return Double.parseDouble(tf.getText().trim().replace(',', '.'));
     }
 
+    // CLASSES
+
+    private class HeaderPanel extends JPanel {
+        HeaderPanel() { setPreferredSize(new Dimension(100, 110)); }
+        @Override protected void paintComponent(Graphics g) {
+            Design.drawHeader(g, getWidth(), getHeight());
+        }
     }
+
+    private class OrdersTableModel extends AbstractTableModel {
+        private List<Order> data = List.of();
+        private final String[] cols = {"ID","Customer","Phone","Method","Status","Total"};
+        private String filter = "Active";
+        public void setFilter(String f) { this.filter = f; reloadOrders(); }
+        public void setOrders(List<Order> orders) {
+            if (orders == null) data = List.of();
+            else {
+                if ("Active".equalsIgnoreCase(filter)) data = orders.stream().filter(o -> o.getStatus()!=OrderStatus.DELIVERED && o.getStatus()!=OrderStatus.CANCELED).toList();
+                else if ("Completed".equalsIgnoreCase(filter)) data = orders.stream().filter(o -> o.getStatus()==OrderStatus.DELIVERED || o.getStatus()==OrderStatus.CANCELED).toList();
+                else data = orders;
+            }
+            fireTableDataChanged();
+        }
+        public Order getOrderAt(int r) { return data.get(r); }
+        @Override public int getRowCount() { return data.size(); }
+        @Override public int getColumnCount() { return cols.length; }
+        @Override public String getColumnName(int c) { return cols[c]; }
+        @Override public Object getValueAt(int r, int c) {
+            Order o = data.get(r);
+            return switch (c) {
+                case 0 -> o.getId();
+                case 1 -> o.getCustomerName();
+                case 2 -> o.getPhone();
+                case 3 -> o.getMethod();
+                case 4 -> o.getStatus().name();
+                case 5 -> String.format("€%.2f", o.getTotal());
+                default -> "";
+            };
+        }
+    }
+
+    private class OrderDetailsDialog extends JDialog {
+        OrderDetailsDialog(Window owner, Order o) {
+            super(owner, "Order #" + o.getId(), ModalityType.APPLICATION_MODAL);
+            setSize(560,420);
+            setLocationRelativeTo(owner);
+            getContentPane().setBackground(Design.COLOR_BG);
+            
+            JTextArea info = new JTextArea();
+            info.setEditable(false);
+            StringBuilder sb = new StringBuilder();
+            sb.append("Customer: ").append(o.getCustomerName()).append("\n");
+            sb.append("Phone: ").append(o.getPhone()).append("\n");
+            sb.append("Address: ").append(o.getAddress()).append("\n");
+            sb.append("Total: ").append(String.format("€%.2f", o.getTotal())).append("\n\n");
+            for (OrderItem it : o.getItems()) {
+                 sb.append(it.getName()).append(" x").append(it.getQuantity()).append(" (").append(String.format("€%.2f", it.getUnitPrice())).append(" each)\n");
+                 if(!it.getExtras().isEmpty()) sb.append("  Extras: ").append(it.getExtras()).append("\n");
+                 if(it.getSauce()!=null && !it.getSauce().isEmpty()) sb.append("  Sauce: ").append(it.getSauce()).append("\n");
+            }
+            info.setText(sb.toString());
+            add(new JScrollPane(info), BorderLayout.CENTER);
+            JButton ok = new JButton("Close"); ok.addActionListener(e->dispose());
+            Design.styleButton(ok, true);
+            JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT)); p.setBackground(Design.COLOR_BG); p.add(ok);
+            add(p, BorderLayout.SOUTH);
+        }
+    }
+
+    private class OrderFormDialog extends JDialog {
+        private JComboBox<String> cbSize;
+        private JComboBox<Product> cbProduct;
+        private JComboBox<ProductType> cbType;
+        private JPanel extrasPanel;
+        private JComboBox<String> cbSauce;
+        private boolean saved = false;
+
+        OrderFormDialog(Window owner) {
+            super(owner, "New Order", ModalityType.APPLICATION_MODAL);
+            setSize(950,650);
+            setLocationRelativeTo(owner);
+            JPanel main = new JPanel(new BorderLayout(8,8));
+            main.setBackground(Design.COLOR_BG);
+            main.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+
+            JPanel top = new JPanel(new GridLayout(4,2,6,6));
+            JTextField tfName = new JTextField(); ((AbstractDocument)tfName.getDocument()).setDocumentFilter(new NameFilter());
+            JTextField tfPhone = new JTextField(); ((AbstractDocument)tfPhone.getDocument()).setDocumentFilter(new PhoneFilter());
+            JTextField tfAddress = new JTextField();
+            JComboBox<String> method = new JComboBox<>(new String[]{"Pickup","Delivery"});
+            top.setBackground(Design.COLOR_BG);
+            top.add(new JLabel("Customer:")); top.add(tfName);
+            top.add(new JLabel("Phone:")); top.add(tfPhone);
+            top.add(new JLabel("Address:")); top.add(tfAddress);
+            top.add(new JLabel("Method:")); top.add(method);
+            tfAddress.setEnabled(false);
+            method.addActionListener(e -> tfAddress.setEnabled("Delivery".equals(method.getSelectedItem())));
+
+            JPanel center = new JPanel(new BorderLayout(6,6));
+            center.setBackground(Design.COLOR_BG);
+            center.setBorder(BorderFactory.createTitledBorder("Product Selection"));
+            
+            JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT,6,6));
+            controls.setBackground(Design.COLOR_BG);
+            cbType = new JComboBox<>(ProductType.values());
+            cbProduct = new JComboBox<>();
+            cbSize = new JComboBox<>();
+            JSpinner spQty = new JSpinner(new SpinnerNumberModel(1,1,100,1));
+            cbSauce = new JComboBox<>();
+            
+            controls.add(new JLabel("Type:")); controls.add(cbType);
+            controls.add(new JLabel("Product:")); controls.add(cbProduct);
+            controls.add(new JLabel("Size:")); controls.add(cbSize);
+            controls.add(new JLabel("Sauce:")); controls.add(cbSauce);
+            controls.add(new JLabel("Qty:")); controls.add(spQty);
+            
+            JButton btnAdd = new JButton("ADD"); Design.styleButton(btnAdd, true);
+            
+            extrasPanel = new JPanel(); 
+            extrasPanel.setBackground(Design.COLOR_BG);
+            extrasPanel.setLayout(new BoxLayout(extrasPanel, BoxLayout.Y_AXIS));
+            center.add(controls, BorderLayout.NORTH);
+            center.add(new JScrollPane(extrasPanel), BorderLayout.CENTER);
+            center.add(btnAdd, BorderLayout.SOUTH);
+
+            DefaultListModel<OrderItem> model = new DefaultListModel<>();
+            JList<OrderItem> list = new JList<>(model);
+            JPanel right = new JPanel(new BorderLayout(6,6));
+            right.setBackground(Design.COLOR_BG);
+            right.setBorder(BorderFactory.createTitledBorder("Basket"));
+            right.add(new JScrollPane(list), BorderLayout.CENTER);
+            JButton btnRem = new JButton("Remove"); Design.styleButton(btnRem, false);
+            right.add(btnRem, BorderLayout.SOUTH);
+
+            JPanel bot = new JPanel(new BorderLayout());
+            bot.setBackground(Design.COLOR_BG);
+            JLabel lblTot = new JLabel("Total: €0.00"); lblTot.setFont(new Font("SansSerif",Font.BOLD,16));
+            JButton btnSave = new JButton("Save Order"); Design.styleButton(btnSave, true);
+            JButton btnCancel = new JButton("Cancel"); Design.styleButton(btnCancel, false);
+            JPanel acts = new JPanel(); acts.setBackground(Design.COLOR_BG); acts.add(btnSave); acts.add(btnCancel);
+            bot.add(lblTot, BorderLayout.WEST); bot.add(acts, BorderLayout.EAST);
+
+            main.add(top, BorderLayout.NORTH);
+            main.add(new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, center, right), BorderLayout.CENTER);
+            main.add(bot, BorderLayout.SOUTH);
+            setContentPane(main);
+
+            cbType.addActionListener(e -> updateList());
+            cbProduct.addActionListener(e -> updateDetails());
+            updateList();
+
+            btnAdd.addActionListener(e -> {
+                Product p = (Product) cbProduct.getSelectedItem();
+                if(p==null) return;
+                int qty = (Integer) spQty.getValue();
+                String sz = (String) cbSize.getSelectedItem();
+                double unit = p.getBasePrice();
+                if(p.getType()==ProductType.PIZZA && "40 cm".equals(sz)) unit *= PIZZA_40_MULT;
+                if(p.getType()==ProductType.PIZZA && "50 cm".equals(sz)) unit *= PIZZA_50_MULT;
+                if(p.getType()==ProductType.DRINK && "1 l".equals(sz)) unit *= DRINK_1L_MULT;
+                
+                OrderItem it = new OrderItem();
+                it.setProductId(p.getId());
+                it.setName(p.getName() + (sz!=null && !sz.equals("Standard") ? " "+sz : ""));
+                it.setUnitPrice(Math.round(unit*100.0)/100.0);
+                it.setQuantity(qty);
+                it.setSauce(cbSauce.isEnabled() ? (String)cbSauce.getSelectedItem() : "");
+                for(Component c : extrasPanel.getComponents()) if(c instanceof JCheckBox cb && cb.isSelected()) {
+                    String[] kv = cb.getActionCommand().split(":");
+                    it.getExtras().add(kv[0]);
+                    it.setUnitPrice(it.getUnitPrice() + Double.parseDouble(kv[1]));
+                }
+                model.addElement(it);
+                updateTotal(lblTot, model, method);
+            });
+
+            btnRem.addActionListener(e -> {
+                if(list.getSelectedIndex()>=0) model.remove(list.getSelectedIndex());
+                updateTotal(lblTot, model, method);
+            });
+            
+            btnSave.addActionListener(e -> {
+                if(tfName.getText().isEmpty()) { JOptionPane.showMessageDialog(this,"Name required"); return; }
+                Order o = new Order();
+                o.setCustomerName(tfName.getText());
+                o.setPhone(tfPhone.getText());
+                o.setAddress(tfAddress.getText());
+                o.setMethod((String)method.getSelectedItem());
+                o.setDeliveryFee("Delivery".equals(method.getSelectedItem()) ? DELIVERY_FEE : 0.0);
+                for(int i=0; i<model.size(); i++) o.getItems().add(model.get(i));
+                storage.createOrder(o);
+                saved = true; dispose();
+            });
+            btnCancel.addActionListener(e -> dispose());
+        }
+
+        private void updateList() {
+            ProductType t = (ProductType) cbType.getSelectedItem();
+            cbProduct.removeAllItems();
+            for(var l : cbProduct.getActionListeners()) cbProduct.removeActionListener(l);
+            for(Product p : storage.listProducts()) if(p.getType()==t) cbProduct.addItem(p);
+            cbProduct.addActionListener(e -> updateDetails());
+            if(cbProduct.getItemCount()>0) cbProduct.setSelectedIndex(0);
+            updateDetails();
+        }
+
+        private void updateDetails() {
+            Product p = (Product) cbProduct.getSelectedItem();
+            cbSize.removeAllItems();
+            extrasPanel.removeAll();
+            cbSauce.removeAllItems();
+            if(p==null) return;
+            
+            if(p.getType()==ProductType.PIZZA) {
+                cbSize.addItem("30 cm"); cbSize.addItem("40 cm"); cbSize.addItem("50 cm"); cbSize.setEnabled(true);
+            } else if(p.getType()==ProductType.DRINK) {
+                cbSize.addItem("0.5 l"); cbSize.addItem("1 l"); cbSize.setEnabled(true);
+            } else {
+                cbSize.addItem("Standard"); cbSize.setEnabled(false);
+            }
+            
+            cbSauce.setEnabled(p.getType()!=ProductType.DRINK);
+            if(p.getType()!=ProductType.DRINK) {
+                if(p.getSauces().isEmpty() && p.getType()==ProductType.SNACK) {
+                    for(String s : List.of("Ketchup","Mayo","Garlic")) cbSauce.addItem(s);
+                } else {
+                    for(String s : p.getSauces()) cbSauce.addItem(s);
+                }
+            }
+            for(Extra ex : p.getExtras()) {
+                JCheckBox cb = new JCheckBox(ex.getName()+" (+"+ex.getPrice()+")");
+                cb.setActionCommand(ex.getName()+":"+ex.getPrice());
+                cb.setBackground(Design.COLOR_BG);
+                extrasPanel.add(cb);
+            }
+            extrasPanel.revalidate(); extrasPanel.repaint();
+        }
+
+        private void updateTotal(JLabel lbl, DefaultListModel<OrderItem> m, JComboBox<?> meth) {
+            double s = 0; for(int i=0; i<m.size(); i++) s += m.get(i).getTotal();
+            if("Delivery".equals(meth.getSelectedItem())) s += DELIVERY_FEE;
+            lbl.setText("Total: €"+String.format("%.2f", s));
+        }
+        public boolean isSaved() { return saved; }
+    }
+
+    // Helpers classes
+    static class SimpleCalcListener implements DocumentListener {
+        private final JTextField src, trg1, trg2;
+        private final double m1, m2;
+        SimpleCalcListener(JTextField s, JTextField t1, JTextField t2, double m1, double m2) { src=s; trg1=t1; trg2=t2; this.m1=m1; this.m2=m2; }
+        public void insertUpdate(DocumentEvent e) { c(); }
+        public void removeUpdate(DocumentEvent e) { c(); }
+        public void changedUpdate(DocumentEvent e) { c(); }
+        void c() {
+            try { double v = Double.parseDouble(src.getText().replace(',','.'));
+            if(trg1!=null) trg1.setText(String.format("%.2f", v*m1));
+            if(trg2!=null) trg2.setText(String.format("%.2f", v*m2));
+            } catch(Exception ignored) { if(trg1!=null) trg1.setText(""); if(trg2!=null) trg2.setText(""); }
+        }
+    }
+
+    static class NameInputFilter extends DocumentFilter {
+        public void insertString(FilterBypass fb, int offs, String str, AttributeSet a) throws BadLocationException { super.insertString(fb, offs, clean(str), a); }
+        public void replace(FilterBypass fb, int offs, int len, String str, AttributeSet a) throws BadLocationException { super.replace(fb, offs, len, clean(str), a); }
+        private String clean(String s) { StringBuilder sb = new StringBuilder(); for(char c:s.toCharArray()) if(!Character.isDigit(c)) sb.append(c); return sb.toString(); }
+    }
+    static class PriceInputFilter extends DocumentFilter {
+        public void insertString(FilterBypass fb, int offs, String str, AttributeSet a) throws BadLocationException { super.insertString(fb, offs, clean(str), a); }
+        public void replace(FilterBypass fb, int offs, int len, String str, AttributeSet a) throws BadLocationException { if(str!=null) super.replace(fb, offs, len, clean(str), a); }
+        private String clean(String s) { s=s.replace(',', '.'); StringBuilder sb = new StringBuilder(); for(char c:s.toCharArray()) if(Character.isDigit(c)||c=='.') sb.append(c); return sb.toString(); }
+    }
+    static class NameFilter extends DocumentFilter {
+        public void insertString(FilterBypass fb, int offs, String str, AttributeSet a) throws BadLocationException { super.insertString(fb, offs, f(str), a); }
+        public void replace(FilterBypass fb, int offs, int len, String str, AttributeSet a) throws BadLocationException { super.replace(fb, offs, len, f(str), a); }
+        private String f(String s) { StringBuilder sb = new StringBuilder(); for(char c:s.toCharArray()) if(Character.isLetter(c)||c==' ') sb.append(c); return sb.toString(); }
+    }
+    static class PhoneFilter extends DocumentFilter {
+        public void insertString(FilterBypass fb, int offs, String str, AttributeSet a) throws BadLocationException { super.insertString(fb, offs, f(str), a); }
+        public void replace(FilterBypass fb, int offs, int len, String str, AttributeSet a) throws BadLocationException { super.replace(fb, offs, len, f(str), a); }
+        private String f(String s) { StringBuilder sb = new StringBuilder(); for(char c:s.toCharArray()) if(Character.isDigit(c)||c=='+') sb.append(c); return sb.toString(); }
+    }
+}
