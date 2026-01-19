@@ -55,4 +55,33 @@ public class Design {
         UIManager.put("Table.selectionForeground", Color.WHITE);
     }
 
+    public static void styleButton(JButton btn, boolean primary) {
+        btn.setFont(FONT_BOLD);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setMargin(new Insets(5, 10, 5, 10));
+        btn.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        btn.setBackground(COLOR_BUTTON);
+        btn.setForeground(COLOR_TEXT_ON_BTN);
+
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btn.setBackground(COLOR_BUTTON_HOVER);
+                btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btn.setBackground(COLOR_BUTTON);
+            }
+        });
+    }
+
+    public static Border createCardBorder() {
+        return BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(COLOR_BORDER, 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        );
+    }
+
+   
+
     }
