@@ -1,7 +1,7 @@
 package lvtPicerija;
 
-import javax.swing.*;
-import java.awt.Color;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 public class Main {
     public static void main(String[] args) {
@@ -11,7 +11,7 @@ public class Main {
         } catch (Exception ignored) {}
 
        
-        
+        Design.setupGlobalTheme();
 
         SwingUtilities.invokeLater(() -> {
             AppFrame f = new AppFrame();
