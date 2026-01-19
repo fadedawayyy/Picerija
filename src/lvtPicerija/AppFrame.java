@@ -213,4 +213,284 @@ public class AppFrame extends JFrame {
         return mainPanel;
     }
 
+    private JPanel createProductCard(Product p, Runnable onUpdate) {
+        JPanel card = new JPanel(new BorderLayout(15, 0));
+        card.setBackground(Design.COLOR_CARD_BG); 
+        card.setBorder(Design.createCardBorder());
+
+        JPanel imagePanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Design.drawProductIcon(g, p.getType());
+            }
+        };
+        imagePanel.setPreferredSize(new Dimension(120, 120));
+        imagePanel.setBackground(Design.COLOR_CARD_BG); 
+
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBackground(Design.COLOR_CARD_BG);
+
+        JLabel lblTitle = new JLabel(p.getName().toUpperCase());
+        lblTitle.setFont(Design.FONT_TITLE);
+        lblTitle.setForeground(Design.COLOR_TEXT_MAIN);
+        lblTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JTextArea txtDesc = new JTextArea(generateDescription(p));
+        txtDesc.setFont(Design.FONT_DESC);
+        txtDesc.setForeground(Design.COLOR_DESC_TEXT);
+        txtDesc.setWrapStyleWord(true);
+        txtDesc.setLineWrap(true);
+        txtDesc.setEditable(false);
+        txtDesc.setOpaque(false);
+        txtDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+        txtDesc.setMaximumSize(new Dimension(300, 50));
+
+        JLabel lblPrice = new JLabel();
+        lblPrice.setFont(Design.FONT_PRICE);
+        lblPrice.setForeground(Design.COLOR_PRICE_TEXT);
+        lblPrice.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        String green = String.format("#%02x%02x%02x", Design.COLOR_PRICE_GREEN.getRed(), Design.COLOR_PRICE_GREEN.getGreen(), Design.COLOR_PRICE_GREEN.getBlue());
+        
+        if (p.getType() == ProductType.PIZZA) {
+            double p30 = p.getBasePrice();
+            lblPrice.setText(String.format("<html><div style='margin-top:4px;'>30cm: <font color='%s'>€%.2f</font> | 40cm: <font color='%s'>€%.2f</font><br>50cm: <font color='%s'>€%.2f</font></div></html>", 
+                    green, p30, green, p30 * PIZZA_40_MULT, green, p30 * PIZZA_50_MULT));
+        } else if (p.getType() == ProductType.DRINK) {
+            double p05 = p.getBasePrice();
+            lblPrice.setText(String.format("<html><div style='margin-top:4px;'>0.5l: <font color='%s'>€%.2f</font> | 1l: <font color='%s'>€%.2f</font></div></html>", 
+                    green, p05, green, p05 * DRINK_1L_MULT));
+        } else {
+            lblPrice.setText(String.format("Price: €%.2f", p.getBasePrice()));
+        }
+
+        JButton btnAction = new JButton("Edit");
+        Design.styleButton(btnAction, false);
+        btnAction.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnAction.addActionListener(e -> showEditDialog(p, onUpdate));
+
+        infoPanel.add(lblTitle);
+        infoPanel.add(Box.createVerticalStrut(5));
+        infoPanel.add(txtDesc);
+        infoPanel.add(Box.createVerticalStrut(8));
+        infoPanel.add(lblPrice);
+        infoPanel.add(Box.createVerticalStrut(8));
+        infoPanel.add(btnAction);
+
+        card.add(imagePanel, BorderLayout.WEST);
+        card.add(infoPanel, BorderLayout.CENTER);
+
+        return card;
+    }
+
+    
+    // 3. LOGIC 
+   
+
+    private void showEditDialog(Product p, Runnable onSave) {
+        JTextField tfName = new JTextField(p.getName());
+        ((AbstractDocument) tfName.getDocument()).setDocumentFilter(new NameInputFilter());
+
+        JTextField tfPrice = new JTextField(String.valueOf(p.getBasePrice()));
+        ((AbstractDocument) tfPrice.getDocument()).setDocumentFilter(new PriceInputFilter());
+
+        JTextField tfSecondary = new JTextField(8);
+        tfSecondary.setEditable(false);
+
+        JPanel panel = new JPanel(new GridLayout(0, 1));
+        panel.setBackground(Design.COLOR_BG);
+        panel.add(new JLabel("Product Name (No numbers):"));
+        panel.add(tfName);
+
+        if (p.getType() == ProductType.PIZZA) {
+            panel.add(new JLabel("Price 30cm (€):"));
+            panel.add(tfPrice);
+            panel.add(new JLabel("Price 40cm (Auto):"));
+            panel.add(tfSecondary);
+        } else if (p.getType() == ProductType.DRINK) {
+            panel.add(new JLabel("Price 0.5l (€):"));
+            panel.add(tfPrice);
+            panel.add(new JLabel("Price 1l (Auto):"));
+            panel.add(tfSecondary);
+        } else {
+            panel.add(new JLabel("Price (€):"));
+            panel.add(tfPrice);
+        }
+
+        DocumentListener calcListener = new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { calc(); }
+            public void removeUpdate(DocumentEvent e) { calc(); }
+            public void changedUpdate(DocumentEvent e) { calc(); }
+            void calc() {
+                try {
+                    double val = Double.parseDouble(tfPrice.getText().trim().replace(',', '.'));
+                    if (p.getType() == ProductType.PIZZA) tfSecondary.setText(String.format("%.2f", val * PIZZA_40_MULT));
+                    else if (p.getType() == ProductType.DRINK) tfSecondary.setText(String.format("%.2f", val * DRINK_1L_MULT));
+                } catch(Exception ex) { tfSecondary.setText(""); }
+            }
+        };
+        tfPrice.getDocument().addDocumentListener(calcListener);
+        
+        try {
+            double v = Double.parseDouble(tfPrice.getText());
+             if (p.getType() == ProductType.PIZZA) tfSecondary.setText(String.format("%.2f", v * PIZZA_40_MULT));
+             else if (p.getType() == ProductType.DRINK) tfSecondary.setText(String.format("%.2f", v * DRINK_1L_MULT));
+        } catch (Exception ignored){}
+        
+        int result = JOptionPane.showConfirmDialog(this, panel, "Edit Product: " + p.getId(), JOptionPane.OK_CANCEL_OPTION);
+        
+        if (result == JOptionPane.OK_OPTION) { 
+            try {
+                String newName = tfName.getText().trim();
+                double newPrice = Double.parseDouble(tfPrice.getText().trim().replace(',', '.'));
+                if (!newName.isEmpty() && newPrice > 0) {
+                    p.setName(newName);
+                    p.setBasePrice(newPrice);
+                    storage.saveProduct(p);
+                    onSave.run();
+                } else JOptionPane.showMessageDialog(this, "Invalid input.");
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Error saving."); }
+        }
+    }
+
+    private void showAddProductDialog(Runnable onSave) {
+        JDialog dlg = new JDialog(this, "Add New Product", true);
+        dlg.setSize(400, 350);
+        dlg.setLocationRelativeTo(this);
+        dlg.setLayout(new BorderLayout());
+        dlg.getContentPane().setBackground(Design.COLOR_BG);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBackground(Design.COLOR_BG);
+        form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.gridx = 0; gbc.gridy = 0;
+
+        JComboBox<ProductType> type = new JComboBox<>(ProductType.values());
+        JTextField name = new JTextField(20);
+        ((AbstractDocument) name.getDocument()).setDocumentFilter(new NameInputFilter()); 
+
+        JTextField price = new JTextField(8); 
+        ((AbstractDocument) price.getDocument()).setDocumentFilter(new PriceInputFilter());
+
+        JTextField p30 = new JTextField(8); ((AbstractDocument) p30.getDocument()).setDocumentFilter(new PriceInputFilter());
+        JTextField p40 = new JTextField(8); p40.setEditable(false);
+        JTextField p50 = new JTextField(8); p50.setEditable(false);
+
+        JTextField d05 = new JTextField(8); ((AbstractDocument) d05.getDocument()).setDocumentFilter(new PriceInputFilter());
+        JTextField d1 = new JTextField(8); d1.setEditable(false);
+        
+        p30.getDocument().addDocumentListener(new SimpleCalcListener(p30, p40, p50, PIZZA_40_MULT, PIZZA_50_MULT));
+        d05.getDocument().addDocumentListener(new SimpleCalcListener(d05, d1, null, DRINK_1L_MULT, 0));
+
+        form.add(new JLabel("Type:"), gbc); gbc.gridx = 1; form.add(type, gbc);
+        gbc.gridx = 0; gbc.gridy++;
+        form.add(new JLabel("Name:"), gbc); gbc.gridx = 1; form.add(name, gbc);
+        gbc.gridx = 0; gbc.gridy++;
+        
+        JPanel priceCards = new JPanel(new CardLayout());
+        priceCards.setBackground(Design.COLOR_BG);
+        
+        JPanel stdP = new JPanel(new FlowLayout(FlowLayout.LEFT)); stdP.add(new JLabel("Price (€): ")); stdP.add(price); stdP.setBackground(Design.COLOR_BG);
+        JPanel pizP = new JPanel(new GridLayout(3,2,5,5)); pizP.add(new JLabel("30cm:")); pizP.add(p30); pizP.add(new JLabel("40cm:")); pizP.add(p40); pizP.add(new JLabel("50cm:")); pizP.add(p50); pizP.setBackground(Design.COLOR_BG);
+        JPanel drkP = new JPanel(new GridLayout(2,2,5,5)); drkP.add(new JLabel("0.5l:")); drkP.add(d05); drkP.add(new JLabel("1l:")); drkP.add(d1); drkP.setBackground(Design.COLOR_BG);
+        
+        priceCards.add(pizP, "PIZ"); priceCards.add(stdP, "STD"); priceCards.add(drkP, "DRK");
+        gbc.gridwidth = 2; form.add(priceCards, gbc);
+
+        type.addActionListener(e -> {
+            CardLayout cl = (CardLayout) priceCards.getLayout();
+            ProductType pt = (ProductType) type.getSelectedItem();
+            if (pt == ProductType.PIZZA) cl.show(priceCards, "PIZ");
+            else if (pt == ProductType.DRINK) cl.show(priceCards, "DRK");
+            else cl.show(priceCards, "STD");
+        });
+
+        JButton btnSave = new JButton("Save");
+        Design.styleButton(btnSave, true);
+        btnSave.addActionListener(e -> {
+            try {
+                ProductType selType = (ProductType) type.getSelectedItem();
+                String generatedId = generateNextId(selType);
+                double basePrice = 0;
+                if (selType == ProductType.PIZZA) basePrice = parsePrice(p30);
+                else if (selType == ProductType.DRINK) basePrice = parsePrice(d05);
+                else basePrice = parsePrice(price);
+                
+                Product pnew = new Product(generatedId, selType, name.getText().trim(), basePrice);
+                if (selType == ProductType.PIZZA) {
+                    pnew.getSauces().addAll(List.of("Tomato","Garlic","BBQ","Cream"));
+                    pnew.getExtras().add(new Extra("Extra cheese", 1.5));
+                } else if (selType == ProductType.SNACK) {
+                    pnew.getSauces().addAll(List.of("Ketchup", "Mayo", "Garlic", "BBQ", "Cheese"));
+                }
+                storage.saveProduct(pnew);
+                dlg.dispose();
+                onSave.run();
+            } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Invalid Input"); }
+        });
+
+        dlg.add(form, BorderLayout.CENTER);
+        JPanel bP = new JPanel(); bP.add(btnSave); bP.setBackground(Design.COLOR_BG);
+        dlg.add(bP, BorderLayout.SOUTH);
+        if (type.getSelectedItem() == ProductType.PIZZA) ((CardLayout)priceCards.getLayout()).show(priceCards, "PIZ");
+        dlg.setVisible(true);
+    }
+
+    private JPanel buildHistoryPanel() {
+        JPanel p = new JPanel(new BorderLayout(8,8));
+        p.setBackground(Design.COLOR_BG);
+        p.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
+        DefaultListModel<String> lm = new DefaultListModel<>();
+        JList<String> list = new JList<>(lm);
+        p.add(new JScrollPane(list), BorderLayout.CENTER);
+        JButton btnLoad = new JButton("Load Completed");
+        Design.styleButton(btnLoad, false);
+        btnLoad.addActionListener(e -> {
+            lm.clear();
+            for (Order o : storage.listOrders()) {
+                if (o.getStatus() == OrderStatus.DELIVERED || o.getStatus() == OrderStatus.CANCELED) {
+                    lm.addElement("#" + o.getId() + " " + o.getCustomerName() + " - " + o.getStatus() + " - " + String.format("€%.2f", o.getTotal()));
+                }
+            }
+        });
+        JPanel bot = new JPanel(); bot.setBackground(Design.COLOR_BG); bot.add(btnLoad);
+        p.add(bot, BorderLayout.NORTH);
+        return p;
+    }
+
+    private String generateNextId(ProductType type) {
+        String prefix = type == ProductType.PIZZA ? "PIZ" : type == ProductType.DRINK ? "DRK" : "SNK";
+        int max = 0;
+        for (Product p : storage.listProducts()) {
+            if (p.getId().startsWith(prefix)) {
+                try { int num = Integer.parseInt(p.getId().split("-")[1]); if (num > max) max = num; } catch (Exception ignored) {}
+            }
+        }
+        return String.format("%s-%03d", prefix, max + 1);
+    }
+
+    private String generateDescription(Product p) {
+        StringBuilder sb = new StringBuilder();
+        if (p.getSauces() != null) sb.append(String.join(", ", p.getSauces()));
+        if (p.getType() == ProductType.PIZZA) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append("Mozzarella");
+            String n = p.getName().toLowerCase();
+            if (n.contains("pepperoni")) sb.append(", Pepperoni");
+            if (n.contains("chicken")) sb.append(", Chicken");
+        }
+        if (sb.length() == 0) return p.getType().name();
+        String res = sb.toString();
+        return res.substring(0, 1).toUpperCase() + res.substring(1);
+    }
+
+    private double parsePrice(JTextField tf) {
+        return Double.parseDouble(tf.getText().trim().replace(',', '.'));
+    }
+
     }
