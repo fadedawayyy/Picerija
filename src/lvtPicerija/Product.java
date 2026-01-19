@@ -75,3 +75,38 @@ class OrderItem {
     }
 }
 
+enum OrderStatus { NEW, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELED }
+
+class Order {
+    private long id;
+    private String customerName;
+    private String phone;
+    private String address;
+    private String method; // Pickup or Delivery
+    private OrderStatus status = OrderStatus.NEW;
+    private OffsetDateTime createdAt;
+    private double deliveryFee = 0.0;
+    private final List<OrderItem> items = new ArrayList<>();
+
+    public long getId() { return id; }
+    public void setId(long id) { this.id = id; }
+    public String getCustomerName() { return customerName; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getMethod() { return method; }
+    public void setMethod(String method) { this.method = method; }
+    public OrderStatus getStatus() { return status; }
+    public void setStatus(OrderStatus status) { this.status = status; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public double getDeliveryFee() { return deliveryFee; }
+    public void setDeliveryFee(double deliveryFee) { this.deliveryFee = deliveryFee; }
+    public List<OrderItem> getItems() { return items; }
+    public double getTotal() {
+        double s = items.stream().mapToDouble(OrderItem::getTotal).sum();
+        return s + deliveryFee;
+    }
+}
