@@ -158,4 +158,59 @@ public class AppFrame extends JFrame {
     }
 
   
+    // 2. PRODUCTS TAB
+    
+    private JPanel buildProductsPanel() {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Design.COLOR_BG);
+
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
+        controls.setBackground(Design.COLOR_BG);
+        JButton btnAdd = new JButton("Add New Product");
+        JButton btnReload = new JButton("Refresh");
+        
+        Design.styleButton(btnAdd, true);
+        Design.styleButton(btnReload, false);
+        
+        controls.add(btnAdd);
+        controls.add(btnReload);
+
+        JPanel gridPanel = new JPanel(new GridLayout(0, 2, 20, 20));
+        gridPanel.setBackground(Design.COLOR_BG);
+        gridPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        Runnable loadProducts = () -> {
+            gridPanel.removeAll();
+            List<Product> products = storage.listProducts();
+            products.sort(Comparator.comparing(Product::getType).thenComparing(Product::getId));
+
+            for (Product p : products) {
+                gridPanel.add(createProductCard(p, () -> {
+                    gridPanel.removeAll();
+                    btnReload.doClick(); 
+                }));
+            }
+            gridPanel.revalidate();
+            gridPanel.repaint();
+        };
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(Design.COLOR_BG);
+        wrapper.add(gridPanel, BorderLayout.NORTH);
+        
+        JScrollPane scrollPane = new JScrollPane(wrapper);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.getViewport().setBackground(Design.COLOR_BG);
+
+        btnReload.addActionListener(e -> loadProducts.run());
+        btnAdd.addActionListener(e -> showAddProductDialog(loadProducts));
+
+        mainPanel.add(controls, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        loadProducts.run();
+        return mainPanel;
+    }
+
     }
