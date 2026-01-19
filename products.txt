@@ -1,0 +1,19 @@
+PIZ-001|PIZZA|Classic Margherita|10.40|Extra cheese:1.50;Olives:1.00|Tomato;Garlic
+PIZ-002|PIZZA|Pepperoni Blast|11.10|Extra cheese:1.50;Chili:0.50|Tomato;BBQ
+PIZ-003|PIZZA|BBQ Chicken Supreme|11.60|Extra chicken:2.00;Onion:0.60|BBQ;Garlic
+PIZ-004|PIZZA|Four Cheese Delight|11.50|Blue cheese:1.80;Honey:1.00|Tomato;Cream
+PIZ-005|PIZZA|Meat Lovers Feast|11.90|Bacon:1.50;Ham:1.50|Tomato;BBQ
+PIZ-006|PIZZA|Hawaiian Sunset|11.00|Pineapple:1.00;Ham:1.50|Tomato;Garlic
+PIZ-007|PIZZA|Spicy Diablo|11.70|Jalapeno:1.00;Chili sauce:0.50|Tomato;Sriracha
+PIZ-008|PIZZA|Veggie Garden|10.80|Corn:0.80;Peppers:0.80|Tomato;Garlic
+PIZ-009|PIZZA|Seafood Paradise|11.90|Shrimp:2.50;Mussels:2.00|Tomato;Cream
+PIZ-010|PIZZA|Truffle Mushroom|11.80|Truffle oil:2.00;Mushrooms:1.20|Cream;Garlic
+SNK-001|SNACK|Garlic Breadsticks|4.30||Garlic;Cheese
+SNK-002|SNACK|Mozzarella Sticks|5.20||Cranberry;Tomato
+SNK-003|SNACK|Chicken Wings|5.80||BBQ;Blue Cheese
+SNK-004|SNACK|Loaded Potato Wedges|4.90||Cheese;Bacon
+DRK-001|DRINK|Classic Cola|1.50||
+DRK-002|DRINK|Fresh Lemonade|3.00||
+DRK-003|DRINK|Sparkling Water|1.00||
+DRK-004|DRINK|Iced Tea|1.90||
+DRK-005|DRINK|Orange Juice|1.50||
