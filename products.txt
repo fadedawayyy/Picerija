@@ -17,3 +17,4 @@ DRK-002|DRINK|Fresh Lemonade|3.00||
 DRK-003|DRINK|Sparkling Water|1.00||
 DRK-004|DRINK|Iced Tea|1.90||
 DRK-005|DRINK|Orange Juice|1.50||
+PIZ-011|PIZZA|awda|11.1|Extra cheese:1.5|Tomato;Garlic;BBQ;Cream

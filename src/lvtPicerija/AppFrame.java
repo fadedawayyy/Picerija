@@ -48,7 +48,11 @@ import javax.swing.text.DocumentFilter;
 
 
 public class AppFrame extends JFrame {
-    private final Storage storage = Storage.getInstance();
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1491380167735782514L;
+	private final Storage storage = Storage.getInstance();
     private final OrdersTableModel ordersModel = new OrdersTableModel();
     
     private final double DELIVERY_FEE = 4.00;
