@@ -39,4 +39,20 @@ public class Design {
     public static final Font FONT_LOGO = new Font("SansSerif", Font.BOLD, 42);
 
     
+    public static void setupGlobalTheme() {
+        UIManager.put("Panel.background", COLOR_BG);
+        UIManager.put("Frame.background", COLOR_BG);
+        UIManager.put("Label.foreground", COLOR_TEXT_MAIN);
+        UIManager.put("TabbedPane.background", COLOR_BG);
+        UIManager.put("ScrollPane.background", COLOR_BG);
+        UIManager.put("Viewport.background", COLOR_BG);
+        UIManager.put("OptionPane.background", COLOR_BG);
+        UIManager.put("OptionPane.messageForeground", COLOR_TEXT_MAIN);
+        UIManager.put("CheckBox.background", COLOR_BG);
+        UIManager.put("RadioButton.background", COLOR_BG);
+        UIManager.put("SplitPane.background", COLOR_BG);
+        UIManager.put("Table.selectionBackground", COLOR_BUTTON.brighter());
+        UIManager.put("Table.selectionForeground", Color.WHITE);
+    }
+
     }
